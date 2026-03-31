@@ -1,0 +1,160 @@
+groups:
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # HOST
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: host_alerts
+    rules:
+
+      - alert: HostCpuHigh
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU del host por encima del 85%"
+          description: "El host tiene uso de CPU de {{ printf \"%.1f\" $value }}% durante más de 2 minutos."
+
+      - alert: HostMemoryHigh
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memoria del host por encima del 85%"
+          description: "Uso de memoria: {{ printf \"%.1f\" $value }}%."
+
+      - alert: HostDiskHigh
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disco del host por encima del 80%"
+          description: "Uso de disco en /: {{ printf \"%.1f\" $value }}%."
+
+      - alert: HostDown
+        expr: up{job="node_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host caído o inaccesible"
+          description: "No se puede conectar al node_exporter. El host podría estar caído."
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # CONTENEDORES
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: container_alerts
+    rules:
+
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~".*app.*|.*nginx.*|.*db.*"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Contenedor crítico no encontrado"
+          description: "Un contenedor de la infraestructura (app, nginx o db) dejó de reportar métricas."
+
+      - alert: ContainerCpuHigh
+        expr: (rate(container_cpu_usage_seconds_total{name!=""}[2m])) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Contenedor con CPU alta: {{ $labels.name }}"
+          description: "El contenedor {{ $labels.name }} usa {{ printf \"%.1f\" $value }}% de CPU."
+
+      - alert: ContainerMemoryHigh
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Contenedor con memoria alta: {{ $labels.name }}"
+          description: "El contenedor {{ $labels.name }} usa {{ printf \"%.1f\" $value }}% de su límite de memoria."
+
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Balanceador de carga (nginx) caído"
+          description: "El contenedor nginx no está respondiendo."
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # APLICACIÓN SPRING BOOT
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: app_alerts
+    rules:
+
+      - alert: AppDown
+        expr: up{job="spring_app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servicio Spring Boot caído"
+          description: "El endpoint /actuator/prometheus de la app no responde."
+
+      - alert: AppHighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[2m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tasa de errores HTTP 5xx elevada"
+          description: "Más de 0.1 errores/segundo en los últimos 2 minutos."
+
+      - alert: AppHighLatency
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latencia p95 de la app supera 2 segundos"
+          description: "El percentil 95 de latencia es {{ printf \"%.2f\" $value }}s."
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # BASE DE DATOS
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: database_alerts
+    rules:
+
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL caído"
+          description: "El postgres_exporter no puede conectarse a la base de datos."
+
+      - alert: PostgresHighConnections
+        expr: pg_stat_activity_count > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Conexiones activas de PostgreSQL elevadas"
+          description: "Hay {{ $value }} conexiones activas. Revisar pool de conexiones."
+
+      - alert: PostgresSlowQueries
+        expr: rate(pg_stat_activity_max_tx_duration{state="active"}[5m]) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queries lentas en PostgreSQL"
+          description: "Hay transacciones activas con más de 30 segundos de duración."
+
+      - alert: PostgresDiskUsageHigh
+        expr: pg_database_size_bytes / (1024 * 1024 * 1024) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Base de datos supera 10 GB"
+          description: "Tamaño actual: {{ printf \"%.2f\" $value }} GB. Revisar crecimiento."

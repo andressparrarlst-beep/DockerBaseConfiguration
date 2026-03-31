@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# INSTRUCCIONES PARA CONFIGURAR TELEGRAM:
+#
+# 1. Abre Telegram y busca @BotFather
+# 2. Escribe /newbot y sigue las instrucciones → obtendrás un BOT_TOKEN
+# 3. Busca @userinfobot, envíale cualquier mensaje → obtendrás tu CHAT_ID
+# 4. Reemplaza TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID abajo con tus valores
+#    O mejor: agrégalos a tu archivo .env y usa variables de entorno
+# ─────────────────────────────────────────────────────────────────────────────
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'andres.parra16@uptc.edu.co'
+  smtp_auth_username: 'andres.parra16@uptc.edu.co'
+  smtp_auth_password: 'abcdefghijkl'    # sin espacios
+  smtp_require_tls: true
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s          # Espera 30s antes de enviar el primer mensaje del grupo
+  group_interval: 5m       # Espera 5m antes de enviar nuevas alertas del mismo grupo
+  repeat_interval: 1h      # Reenvía la alerta cada hora si sigue activa
+  receiver: 'gmail'
+
+  routes:
+    # Alertas críticas se envían de inmediato sin espera
+    - match:
+        severity: critical
+      group_wait: 10s
+      repeat_interval: 30m
+      receiver: 'gmail'
+
+receivers:
+  - name: 'gmail'
+    email_configs:
+      - to: 'andres.parra16@uptc.edu.co'          # el mismo correo de Gmail
+        from: 'andres.parra16@uptc.edu.co'
+        smarthost: 'smtp.gmail.com:587'
+        auth_username: 'andres.parra16@uptc.edu.co'
+        auth_password: 'abcdefghijkl'   # la contraseña de 16 chars SIN espacios
+        require_tls: true
+        headers:
+          subject: '🔴 ALERTA: {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>{{ if eq .Status "firing" }}🔴 ALERTA ACTIVA{{ else }}✅ RESUELTA{{ end }}</h2>
+          <b>Alerta:</b> {{ .GroupLabels.alertname }}<br>
+          <b>Severidad:</b> {{ .GroupLabels.severity }}<br><br>
+          {{ range .Alerts }}
+          <b>📌 {{ .Annotations.summary }}</b><br>
+          {{ .Annotations.description }}<br>
+          <i>Inicio: {{ .StartsAt.Format "02/01/2006 15:04:05" }}</i><br><br>
+          {{ end }}
+
+inhibit_rules:
+  # Si el host está caído, no enviar alertas de contenedores (son consecuencia)
+  - source_match:
+      alertname: 'HostDown'
+    target_match_re:
+      alertname: 'Container.*|App.*|Postgres.*'
+    equal: ['instance']
