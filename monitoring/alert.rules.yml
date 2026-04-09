@@ -67,7 +67,7 @@ groups:
           description: "El contenedor {{ $labels.name }} usa {{ printf \"%.1f\" $value }}% de CPU."
 
       - alert: ContainerMemoryHigh
-        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) * 100 > 85
+        expr: (container_memory_usage_bytes{name!=""}/ container_spec_memory_limit_bytes{name!=""}) * 100 > 85 and container_spec_memory_limit_bytes{name!=""} > 0
         for: 2m
         labels:
           severity: warning
@@ -124,7 +124,7 @@ groups:
     rules:
 
       - alert: PostgresDown
-        expr: up{job="postgres"} == 0
+        expr: up{job="postgres"} == 0 or pg_up == 0
         for: 1m
         labels:
           severity: critical

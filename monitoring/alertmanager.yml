@@ -1,19 +1,9 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# INSTRUCCIONES PARA CONFIGURAR TELEGRAM:
-#
-# 1. Abre Telegram y busca @BotFather
-# 2. Escribe /newbot y sigue las instrucciones → obtendrás un BOT_TOKEN
-# 3. Busca @userinfobot, envíale cualquier mensaje → obtendrás tu CHAT_ID
-# 4. Reemplaza TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID abajo con tus valores
-#    O mejor: agrégalos a tu archivo .env y usa variables de entorno
-# ─────────────────────────────────────────────────────────────────────────────
-
 global:
   resolve_timeout: 5m
   smtp_smarthost: 'smtp.gmail.com:587'
   smtp_from: 'andres.parra16@uptc.edu.co'
   smtp_auth_username: 'andres.parra16@uptc.edu.co'
-  smtp_auth_password: 'abcdefghijkl'    # sin espacios
+  smtp_auth_password: 'abcdefghijk'    # sin espacios
   smtp_require_tls: true
 
 route:
@@ -38,7 +28,7 @@ receivers:
         from: 'andres.parra16@uptc.edu.co'
         smarthost: 'smtp.gmail.com:587'
         auth_username: 'andres.parra16@uptc.edu.co'
-        auth_password: 'abcdefghijkl'   # la contraseña de 16 chars SIN espacios
+        auth_password: 'abcdefghijk'   # la contraseña de 16 chars SIN espacios
         require_tls: true
         headers:
           subject: '🔴 ALERTA: {{ .GroupLabels.alertname }}'
